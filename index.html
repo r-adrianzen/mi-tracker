@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Cuentas Claras - Finanzas Personales</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -182,9 +182,29 @@
         .hito-desc {font-size: 0.82rem; color: #cbd5e1; line-height: 1.4;}
         .plan-section-divider {text-align:center; font-size:0.78rem; color:#475569; margin: 1.5rem 0 1rem; display:flex; align-items:center; gap:0.5rem;}
         .plan-section-divider::before, .plan-section-divider::after {content:''; flex:1; border-top:1px solid #334155;}
+
+        /* === TOAST NOTIFICATIONS === */
+        .toast-wrap{position:fixed;top:1rem;left:50%;transform:translateX(-50%);z-index:9999;max-width:460px;width:calc(100% - 2rem);pointer-events:none;}
+        .toast{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:0.7rem 1rem;margin-bottom:0.5rem;display:flex;align-items:center;gap:0.6rem;font-size:0.87rem;color:#e2e8f0;pointer-events:all;box-shadow:0 4px 20px rgba(0,0,0,.55);animation:toastIn .3s ease;transition:opacity .3s;}
+        .toast.warn{border-color:#f59e0b;background:#1c160a;}
+        .toast.err{border-color:#ef4444;background:#1c0a0a;}
+        .toast.ok{border-color:#10b981;background:#0a1a12;}
+        .toast-msg{flex:1;line-height:1.35;}
+        .toast-undo{background:#3b82f6;color:#fff;border:none;border-radius:5px;padding:.3rem .75rem;font-size:.8rem;cursor:pointer;white-space:nowrap;flex-shrink:0;}
+        @keyframes toastIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+        /* === SPINNER === */
+        .spinner{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:5px;}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        /* === NOVEDADES === */
+        .novedad-item{display:flex;gap:0.6rem;padding:0.5rem 0;border-bottom:1px solid #1e293b;font-size:0.83rem;}
+        .novedad-item:last-child{border-bottom:none;}
+        .novedad-badge{background:#1e3a8a;color:#93c5fd;font-size:0.7rem;padding:0.15rem 0.45rem;border-radius:3px;white-space:nowrap;align-self:flex-start;margin-top:0.1rem;flex-shrink:0;}
+        .novedad-badge.fix{background:#064e3b;color:#6ee7b7;}
+        .novedad-badge.ux{background:#4c1d95;color:#c4b5fd;}
     </style>
 </head>
 <body>
+    <div id="toast-wrap" class="toast-wrap"></div>
     <a href="#tab-resumen" class="visually-hidden" style="position:absolute;left:-9999px;">Saltar al contenido</a>
     <div class="header">
         <h1>💰 Cuentas Claras</h1>
@@ -286,6 +306,7 @@
 
         <!-- TAB: AUTO -->
         <div id="tab-auto" class="tab-content">
+            <div id="auto-alertas"></div>
             <div class="card">
                 <div class="card-title">Meta Mensual Uber</div>
                 <div style="display: flex; justify-content: space-between; margin-bottom: 0.3rem; font-size: 0.9rem;">
@@ -444,9 +465,11 @@
                     <label>Fecha de ese saldo</label>
                     <input type="date" id="cfg-saldo-cuenta-fecha">
                 </div>
-                <div class="input-group" style="display:flex;align-items:center;gap:0.5rem;">
-                    <input type="checkbox" id="cfg-cuota-en-gastos" style="width:auto;">
-                    <label for="cfg-cuota-en-gastos" style="margin:0;">La cuota BBVA del mes ya está en mis gastos registrados</label>
+                <div class="input-group" style="display:flex;align-items:flex-start;gap:0.5rem;">
+                    <input type="checkbox" id="cfg-cuota-en-gastos" style="width:auto;margin-top:0.25rem;flex-shrink:0;">
+                    <label for="cfg-cuota-en-gastos" style="margin:0;line-height:1.4;">La cuota BBVA del mes ya está en mis gastos registrados
+                      <small style="display:block;color:#64748b;font-size:0.75rem;margin-top:0.2rem;">Márcalo <strong style="color:#f59e0b;">solo</strong> si registraste la cuota BBVA manualmente como gasto. Sin marcar, la app la descuenta sola. Marcarla sin haberla registrado la descuenta <strong style="color:#ef4444;">dos veces</strong>.</small>
+                    </label>
                 </div>
                 <button class="button" onclick="updateLiquidezConfig()">Guardar liquidez</button>
             </div>
@@ -524,6 +547,10 @@
                 <div id="sync-last" style="font-size:0.72rem;color:#475569;margin-top:0.4rem;text-align:center;"></div>
             </div>
             <div class="config-section">
+                <div class="config-section-title">📋 Novedades</div>
+                <div id="novedades-container"></div>
+            </div>
+            <div class="config-section">
                 <div class="config-section-title">Acciones</div>
                 <button class="button button-secondary" onclick="exportData()">📤 Exportar Datos (JSON)</button>
                 <div style="margin-top:0.75rem;">
@@ -573,7 +600,7 @@ function getPrepagosCapital() {
   return JSON.parse(localStorage.getItem('vwb_prepagos_capital') || '[]');
 }
 function savePrepagosCapital(arr) {
-  localStorage.setItem('vwb_prepagos_capital', JSON.stringify(arr));
+  lsSave('vwb_prepagos_capital', arr);
 }
 
 /** Calendario: sin prepagos = cuota contractual fija 36 meses; con prepagos = saldo con TEA y PMT en meses posteriores al primer prepago. */
@@ -676,7 +703,9 @@ const MANT_SCHEDULE = [
 const CFG_DEF = {metaMensual:2450,promNoche:127,nochesSemana:4.5,glpMes:500,kmActual:112292,kmMes:2000,soatAnual:200,seguroAnual:960,revTecAnual:100,otrosFijos:100,metaFondo:4000,fechaMetaFondo:'2026-11'};
 
 /* ── APP ICON (canvas-generated, single-file) ── */
+var _iconCache = null;
 function buildAppIcon() {
+  if (_iconCache) return _iconCache;
   const S = 512;
   const c = document.createElement('canvas');
   c.width = c.height = S;
@@ -771,7 +800,8 @@ function buildAppIcon() {
   ctx.fillStyle = '#10b981';
   ctx.fillText('CLARAS', cx, 487);
 
-  return c.toDataURL('image/png');
+  _iconCache = c.toDataURL('image/png');
+  return _iconCache;
 }
 
 function installAppIcon() {
@@ -909,8 +939,8 @@ function setDefaultDate() {
 /* ── GETTERS / SETTERS ── */
 function getCfg()         { return JSON.parse(localStorage.getItem('vwb_cfg') || JSON.stringify(CFG_DEF)); }
 function getCfgPersonal() { return JSON.parse(localStorage.getItem('vwb_cfg_personal') || '{}'); }
-function saveCfg(c)       { localStorage.setItem('vwb_cfg', JSON.stringify(c)); }
-function saveCfgPersonal(c){ localStorage.setItem('vwb_cfg_personal', JSON.stringify(c)); }
+function saveCfg(c)       { lsSave('vwb_cfg', c); }
+function saveCfgPersonal(c){ lsSave('vwb_cfg_personal', c); }
 function formatMoney(n)   { return 'S/ ' + Number(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','); }
 function getCurrentMonth(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
 /** Evita inyección HTML en textos guardados por el usuario */
@@ -920,6 +950,50 @@ function escapeHtml(s) {
 }
 function escapeAttr(s) {
   return escapeHtml(s).replace(/'/g,'&#39;');
+}
+
+/* ── TOAST SYSTEM ── */
+function showToast(msg, type, undoFn, undoLabel) {
+  type = type || 'ok';
+  undoLabel = undoLabel || 'Deshacer';
+  const wrap = document.getElementById('toast-wrap');
+  if (!wrap) return;
+  const id = 'toast-' + Date.now();
+  const d = document.createElement('div');
+  d.className = 'toast ' + type;
+  d.id = id;
+  const undoBtn = undoFn
+    ? `<button class="toast-undo" onclick="_toastUndo('${id}')">${escapeHtml(undoLabel)}</button>`
+    : '';
+  d.innerHTML = `<span class="toast-msg">${escapeHtml(msg)}</span>${undoBtn}`;
+  wrap.appendChild(d);
+  if (undoFn) window['_undoFn_' + id] = undoFn;
+  const ms = undoFn ? 5000 : 3000;
+  setTimeout(function() {
+    d.style.opacity = '0';
+    setTimeout(function() { d.remove(); delete window['_undoFn_' + id]; }, 300);
+  }, ms);
+}
+function _toastUndo(id) {
+  var fn = window['_undoFn_' + id];
+  if (fn) fn();
+  var el = document.getElementById(id);
+  if (el) el.remove();
+  delete window['_undoFn_' + id];
+}
+
+/* ── SAFE LOCALSTORAGE SAVE ── */
+function lsSave(key, data) {
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+    return true;
+  } catch(e) {
+    var msg = e.name === 'QuotaExceededError'
+      ? 'Almacenamiento lleno — exporta y limpia datos antiguos.'
+      : e.message;
+    showToast('⚠️ Error guardando: ' + msg, 'err');
+    return false;
+  }
 }
 
 const TAB_ORDER = ['resumen','gastos','auto','plan','config'];
@@ -955,7 +1029,7 @@ function changeViewMonth(delta) {
 
 /* ── GASTOS ── */
 function getGastos()        { return JSON.parse(localStorage.getItem('vwb_gastos') || '[]'); }
-function saveGastos(g)      { localStorage.setItem('vwb_gastos', JSON.stringify(g)); }
+function saveGastos(g)      { lsSave('vwb_gastos', g); }
 function getGastosThisMonth(){ const mes=getCurrentMonth(); return getGastos().filter(g=>g.fecha.startsWith(mes)); }
 function getTotalGastosThisMonth(){ return getGastosThisMonth().reduce((s,g)=>s+g.monto,0); }
 function isHormiga(cat,monto){ return cat==='cafe' || (monto<25 && CATEGORIES[cat] && CATEGORIES[cat].tipo==='discrecional'); }
@@ -984,7 +1058,11 @@ function saveExpense() {
   const categoria= selBtn ? selBtn.dataset.category : null;
   const fecha    = document.getElementById('expense-date').value;
   const nota     = document.getElementById('expense-note').value;
-  if (!amount||!categoria) { alert('Completa monto y categoría'); return; }
+  if (!amount || amount <= 0) { showToast('Ingresa un monto mayor a 0', 'warn'); return; }
+  if (amount > 50000) { showToast('Monto demasiado alto (máx S/ 50,000)', 'warn'); return; }
+  if (!categoria) { showToast('Selecciona una categoría', 'warn'); return; }
+  if (!fecha) { showToast('Indica la fecha del gasto', 'warn'); return; }
+  if (fecha > new Date().toISOString().split('T')[0]) { showToast('La fecha no puede ser futura', 'warn'); return; }
   const gastos = getGastos();
   gastos.push({id:Date.now(),fecha,categoria,monto:amount,nota,esHormiga:isHormiga(categoria,amount),ts:new Date().toISOString()});
   saveGastos(gastos);
@@ -992,12 +1070,24 @@ function saveExpense() {
   document.getElementById('expense-note').value   = '';
   document.querySelectorAll('.category-btn').forEach(b=>b.classList.remove('selected'));
   setDefaultDate();
+  showToast('Gasto guardado ✓', 'ok');
   renderResumen(); renderGastos();
 }
 
 function deleteExpense(id) {
-  saveGastos(getGastos().filter(g=>g.id!==id));
+  const all = getGastos();
+  const deleted = all.find(g => g.id === id);
+  saveGastos(all.filter(g => g.id !== id));
   renderResumen(); renderGastos();
+  if (deleted) {
+    showToast('Gasto eliminado', 'ok', function() {
+      const current = getGastos();
+      current.push(deleted);
+      current.sort(function(a,b){ return (b.ts||'').localeCompare(a.ts||''); });
+      saveGastos(current);
+      renderResumen(); renderGastos();
+    }, 'Deshacer');
+  }
 }
 
 /* ── INGRESOS (cobro manual por fuente) ── */
@@ -1030,7 +1120,7 @@ function getTotalConfiguredIncome() {
 
 /* ── UBER / AUTO ── */
 function getRegs()          { return JSON.parse(localStorage.getItem('vwb_regs') || '[]'); }
-function saveRegs(r)        { localStorage.setItem('vwb_regs', JSON.stringify(r)); }
+function saveRegs(r)        { lsSave('vwb_regs', r); }
 function getRegsThisMonth() { const mes=getCurrentMonth(); return getRegs().filter(r=>r.fecha.startsWith(mes)); }
 function getTotalUberThisMonth()  { return getRegsThisMonth().reduce((s,r)=>s+r.ingreso,0); }
 function getTotalGLPThisMonth()   { return getRegsThisMonth().reduce((s,r)=>s+r.glp,0); }
@@ -1044,18 +1134,23 @@ function guardarNoche() {
   const glp     = parseFloat(document.getElementById('noche-glp').value)||0;
   const otros   = parseFloat(document.getElementById('noche-otros').value)||0;
   const fondo   = parseFloat(document.getElementById('noche-fondo').value)||0;
-  if (!fecha||ingreso<=0) { alert('Completa fecha e ingreso'); return; }
+  if (!fecha) { showToast('Indica la fecha', 'warn'); return; }
+  if (ingreso <= 0) { showToast('El ingreso Uber debe ser mayor a 0', 'warn'); return; }
+  if (ingreso > 5000) { showToast('Ingreso Uber demasiado alto (máx S/ 5,000)', 'warn'); return; }
+  if (glp < 0 || otros < 0 || fondo < 0) { showToast('Los gastos no pueden ser negativos', 'warn'); return; }
+  if (fecha > new Date().toISOString().split('T')[0]) { showToast('La fecha no puede ser futura', 'warn'); return; }
   const regs = getRegs();
   regs.push({id:Date.now(),fecha,ingreso,glp,otros,fondo,ts:new Date().toISOString()});
   saveRegs(regs);
   ['noche-ingreso','noche-glp','noche-otros','noche-fondo'].forEach(id=>document.getElementById(id).value='');
   setDefaultDate();
+  showToast('Noche guardada ✓', 'ok');
   renderAuto(); renderResumen(); renderGastos();
 }
 
 /* ── EMERGENCIA ── */
 function getEmergencia()    { return JSON.parse(localStorage.getItem('vwb_emergencia') || '[]'); }
-function saveEmergencia(e)  { localStorage.setItem('vwb_emergencia', JSON.stringify(e)); }
+function saveEmergencia(e)  { lsSave('vwb_emergencia', e); }
 function getEmergenciaBase() {
   const cfgP = getCfgPersonal();
   return Math.max(0, Number(cfgP.emergencia_base) || 0);
@@ -1566,9 +1661,13 @@ function saveExpenseEdit(id) {
   const monto = parseFloat(document.getElementById('eed-monto-'+id).value);
   const fecha = document.getElementById('eed-fecha-'+id).value;
   const nota  = document.getElementById('eed-nota-'+id).value;
-  if (!monto||!fecha) { alert('Completa monto y fecha'); return; }
+  if (!monto || monto <= 0) { showToast('Monto inválido', 'warn'); return; }
+  if (monto > 50000) { showToast('Monto demasiado alto (máx S/ 50,000)', 'warn'); return; }
+  if (!fecha) { showToast('Indica la fecha', 'warn'); return; }
+  if (fecha > new Date().toISOString().split('T')[0]) { showToast('La fecha no puede ser futura', 'warn'); return; }
   gastos[idx] = {...gastos[idx], monto, fecha, nota, esHormiga: isHormiga(gastos[idx].categoria, monto)};
   saveGastos(gastos);
+  showToast('Gasto actualizado ✓', 'ok');
   renderGastos(); renderResumen();
 }
 
@@ -1754,6 +1853,36 @@ function renderAuto() {
   document.getElementById('uber-gauge-pct').textContent   = Math.round(pctUber) + '%';
   const colorUber = pctUber>=100?'#10b981':pctUber>=70?'#f59e0b':'#ef4444';
   document.getElementById('uber-gauge').style.background  = colorUber;
+
+  // ── Alerta: caída de ingresos Uber mes anterior ──
+  const mesActual = getCurrentMonth();
+  const [hy, hm] = mesActual.split('-').map(Number);
+  let pm = hm - 1, py = hy;
+  if (pm < 1) { pm = 12; py--; }
+  const mesPrev = `${py}-${String(pm).padStart(2,'0')}`;
+  const uberPrevRegs = getRegs().filter(r => r.fecha.startsWith(mesPrev));
+  const uberPrevBruto = uberPrevRegs.reduce((s,r) => s+r.ingreso, 0);
+  let alertAutoHtml = '';
+  if (uberPrevBruto > 0 && uberBruto > 0) {
+    const caida = (uberPrevBruto - uberBruto) / uberPrevBruto;
+    if (caida >= 0.30) {
+      alertAutoHtml += `<div class="alert warning" style="margin-bottom:1rem;">⚠️ <strong>Caída de ingresos Uber</strong><br>
+        Este mes: ${formatMoney(uberBruto)} vs mes anterior: ${formatMoney(uberPrevBruto)} (<strong>-${Math.round(caida*100)}%</strong>).
+        Revisa si hay días sin registrar o si la demanda bajó.
+      </div>`;
+    }
+  }
+  // ── Alerta: GLP mensual ──
+  const glpMesTotal = getTotalGLPThisMonth();
+  const glpPresupuesto = getCfg().glpMes || 500;
+  if (glpMesTotal > glpPresupuesto) {
+    alertAutoHtml += `<div class="alert warning" style="margin-bottom:1rem;">⛽ <strong>GLP sobre presupuesto</strong><br>
+      Llevas ${formatMoney(glpMesTotal)} en GLP este mes vs presupuesto de ${formatMoney(glpPresupuesto)}.
+      Diferencia: <strong>${formatMoney(glpMesTotal - glpPresupuesto)}</strong> extra.
+    </div>`;
+  }
+  const alertAutoEl = document.getElementById('auto-alertas');
+  if (alertAutoEl) alertAutoEl.innerHTML = alertAutoHtml;
 
   const regs = getRegsThisMonth();
   const cuotaEntry = plan.find(p=>p.mes===getCurrentMonth());
@@ -2070,19 +2199,20 @@ function registrarPrepagoCapital() {
   const fecha = document.getElementById('prepago-fecha').value;
   const monto = parseFloat(document.getElementById('prepago-monto').value);
   const nota = document.getElementById('prepago-nota').value.trim();
-  if (!fecha || !(monto > 0)) {
-    alert('Indica la fecha del abono y un monto a capital mayor a 0.');
-    return;
-  }
+  if (!fecha) { showToast('Indica la fecha del abono', 'warn'); return; }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) { showToast('Formato de fecha inválido (usa YYYY-MM-DD)', 'warn'); return; }
+  if (!(monto > 0)) { showToast('El monto a capital debe ser mayor a 0', 'warn'); return; }
+  if (monto > LOAN.monto) { showToast('El monto supera el crédito original (S/ ' + LOAN.monto.toLocaleString() + ')', 'warn'); return; }
   const sumPrev = getPrepagosCapital().reduce((s, p) => s + (Number(p.monto) || 0), 0);
   if (sumPrev + monto > LOAN.monto + 1) {
-    if (!confirm('El total de amortizaciones supera el monto original del préstamo. ¿Registrar igual (por ejemplo ajuste con el banco)?')) return;
+    if (!confirm('El total de amortizaciones supera el monto original del préstamo. ¿Registrar igual (ajuste con el banco)?')) return;
   }
   const arr = getPrepagosCapital();
   arr.push({ id: Date.now(), fecha, monto, nota, ts: new Date().toISOString() });
   savePrepagosCapital(arr);
   document.getElementById('prepago-monto').value = '';
   document.getElementById('prepago-nota').value = '';
+  showToast('Amortización registrada ✓', 'ok');
   renderPlan(); renderResumen(); renderAuto(); renderGastos();
 }
 
@@ -2143,6 +2273,7 @@ function renderConfig() {
 
   document.getElementById('cfg-meta-emergencia').value = cfgP.meta_emergencia||6000;
   renderSyncConfig();
+  renderNovedades();
 
   // Mantenimiento
   const mant = JSON.parse(localStorage.getItem('vwb_mant')||'{}');
@@ -2222,8 +2353,8 @@ function updateMaintenance(e) {
     const v = parseInt(e.target.value);
     mant[id].km = isNaN(v) ? undefined : v;
   } else mant[id].notas = e.target.value;
-  localStorage.setItem('vwb_mant', JSON.stringify(mant));
-  renderMantKmAlertas(); // refresh alerts live
+  lsSave('vwb_mant', mant);
+  renderMantKmAlertas();
 }
 function updateAutoConfig() {
   const cfg = getCfg();
@@ -2351,6 +2482,8 @@ async function saveToGist() {
   const s = getSyncCfg();
   if (!s.token) { showSyncStatus('⚠️ Ingresa el token primero y guarda la configuración', '#f59e0b'); return; }
   const gid = s.gist_id || DEFAULT_GIST_ID;
+  const saveBtn = document.querySelector('button[onclick="saveToGist()"]');
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = '<span class="spinner"></span>Guardando...'; }
   showSyncStatus('☁️ Guardando en nube...', '#60a5fa');
   try {
     const r = await fetch(`https://api.github.com/gists/${gid}`, {
@@ -2365,11 +2498,17 @@ async function saveToGist() {
       const lastEl = document.getElementById('sync-last');
       if (lastEl) lastEl.textContent = `Último sync: ${now.toLocaleDateString('es-PE')} ${now.toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'})}`;
       showSyncStatus('✅ Datos guardados en la nube', '#10b981');
+      showToast('☁️ Sync completado ✓', 'ok');
     } else {
-      const err = await r.json();
-      showSyncStatus(`❌ Error: ${err.message}`, '#ef4444');
+      let errMsg = 'Error desconocido';
+      try { const err = await r.json(); errMsg = err.message || errMsg; } catch(_){}
+      showSyncStatus(`❌ Error ${r.status}: ${errMsg}`, '#ef4444');
     }
-  } catch(e) { showSyncStatus(`❌ Sin conexión: ${e.message}`, '#ef4444'); }
+  } catch(e) {
+    showSyncStatus(`❌ Sin conexión: ${e.message}`, '#ef4444');
+  } finally {
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '☁️ Guardar en nube'; }
+  }
 }
 
 async function loadFromGist() {
@@ -2377,16 +2516,27 @@ async function loadFromGist() {
   if (!s.token) { showSyncStatus('⚠️ Ingresa el token primero y guarda la configuración', '#f59e0b'); return; }
   const gid = s.gist_id || DEFAULT_GIST_ID;
   if (!confirm('¿Cargar datos desde la nube? Esto REEMPLAZARÁ todos los datos locales.')) return;
+  const loadBtn = document.querySelector('button[onclick="loadFromGist()"]');
+  if (loadBtn) { loadBtn.disabled = true; loadBtn.innerHTML = '<span class="spinner"></span>Cargando...'; }
   showSyncStatus('⬇️ Cargando desde nube...', '#60a5fa');
   try {
     const r = await fetch(`https://api.github.com/gists/${gid}`, {
       headers: { 'Authorization': `token ${s.token}` }
     });
-    if (!r.ok) { const err = await r.json(); showSyncStatus(`❌ Error: ${err.message}`, '#ef4444'); return; }
+    if (!r.ok) {
+      let errMsg = 'Error ' + r.status;
+      try { const err = await r.json(); errMsg = err.message || errMsg; } catch(_){}
+      showSyncStatus(`❌ ${errMsg}`, '#ef4444');
+      return;
+    }
     const gist = await r.json();
     const content = gist.files['tracker-data.json']?.content;
     if (!content) { showSyncStatus('❌ No se encontró tracker-data.json en el Gist', '#ef4444'); return; }
-    const data = JSON.parse(content);
+    let data;
+    try { data = JSON.parse(content); } catch(parseErr) {
+      showSyncStatus('❌ El archivo en la nube está corrupto (JSON inválido)', '#ef4444');
+      return;
+    }
     if (data.gastos)           localStorage.setItem('vwb_gastos',           JSON.stringify(data.gastos));
     if (data.regs)             localStorage.setItem('vwb_regs',             JSON.stringify(data.regs));
     if (data.emergencia)       localStorage.setItem('vwb_emergencia',       JSON.stringify(data.emergencia));
@@ -2398,7 +2548,11 @@ async function loadFromGist() {
     localStorage.setItem('vwb_sync', JSON.stringify({...s, gist_id: gid, last_sync: now.toISOString()}));
     showSyncStatus('✅ Datos cargados. Recargando...', '#10b981');
     setTimeout(() => location.reload(), 1200);
-  } catch(e) { showSyncStatus(`❌ Error: ${e.message}`, '#ef4444'); }
+  } catch(e) {
+    showSyncStatus(`❌ Sin conexión: ${e.message}`, '#ef4444');
+  } finally {
+    if (loadBtn) { loadBtn.disabled = false; loadBtn.innerHTML = '⬇️ Cargar desde nube'; }
+  }
 }
 
 /* ── RECOMENDACIÓN DE AHORRO ── */
@@ -2457,6 +2611,32 @@ function autoSugiereFondo(monto) {
   em.push({id:Date.now(), fecha:new Date().toISOString().split('T')[0], monto, ts:new Date().toISOString(), automatico:true});
   saveEmergencia(em);
   renderResumen();
+}
+
+/* ── NOVEDADES / CHANGELOG ── */
+function renderNovedades() {
+  const el = document.getElementById('novedades-container');
+  if (!el) return;
+  const items = [
+    { badge: 'fix', label: 'Zoom', desc: 'La app ya no hace zoom involuntario al tocar campos en móvil.' },
+    { badge: 'fix', label: 'Validación', desc: 'Montos negativos, fechas futuras y valores extremos son rechazados con aviso claro.' },
+    { badge: 'fix', label: 'localStorage', desc: 'Si el almacenamiento falla (modo privado o lleno), aparece un aviso en pantalla en lugar de perder datos silenciosamente.' },
+    { badge: 'fix', label: 'Sync nube', desc: 'JSON corrupto en el Gist ya no crashea la app — muestra error descriptivo. Errores de API se muestran sin exponer detalles técnicos.' },
+    { badge: 'fix', label: 'Prepago BBVA', desc: 'Fecha de amortización validada: formato incorrecto genera aviso inmediato.' },
+    { badge: 'ux',  label: 'Toasts', desc: 'Notificaciones visuales al guardar gastos, noches, amortizaciones y sync.' },
+    { badge: 'ux',  label: 'Deshacer', desc: 'Al eliminar un gasto aparece botón "Deshacer" por 5 segundos.' },
+    { badge: 'ux',  label: 'Spinner sync', desc: 'Indicador de carga mientras se guarda o descarga desde GitHub Gist.' },
+    { badge: 'ux',  label: 'Cuota BBVA', desc: 'Explicación mejorada del checkbox para evitar el descuento doble de la cuota.' },
+    { badge: 'new', label: 'Alerta GLP', desc: 'Avisa en pestaña Auto cuando el GLP del mes supera el presupuesto configurado.' },
+    { badge: 'new', label: 'Alerta Uber', desc: 'Detecta y avisa si los ingresos Uber caen ≥30% respecto al mes anterior.' },
+    { badge: 'fix', label: 'Icono app', desc: 'El ícono PWA ya se genera una sola vez y queda cacheado, sin regenerarlo en cada visita.' },
+  ];
+  el.innerHTML = items.map(function(i) {
+    return `<div class="novedad-item">
+      <span class="novedad-badge ${i.badge||''}">${escapeHtml(i.label)}</span>
+      <span style="color:#cbd5e1;line-height:1.4;">${escapeHtml(i.desc)}</span>
+    </div>`;
+  }).join('') + `<div style="font-size:0.75rem;color:#475569;margin-top:0.5rem;text-align:right;">v2.0 · Abr 2026</div>`;
 }
 
 window.addEventListener('DOMContentLoaded', init);
