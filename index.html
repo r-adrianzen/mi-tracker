@@ -1239,9 +1239,13 @@ function renderModoDiario() {
 
   let nudgeHtml = '';
   if (mesEnNegativo) {
+    // Calcular cuánto queda de ingresos no fijos que pueden llegar
+    const diasRestNudge = diasRestantes;
+    // Sugerir un techo diario de emergencia: solo gastos esenciales ~S/30-50/día
+    const techoEmergencia = 40;
     nudgeHtml = `<div class="nudge-card warn">
       <div class="nudge-icon">⚠️</div>
-      <div class="nudge-text"><strong>Mes con gastos excepcionales</strong>Gastaste ${formatMoney(overshootMes)} más de tus ingresos esperados — probablemente por compras únicas (auto, multa, etc). Intenta gastar lo mínimo estos días.</div>
+      <div class="nudge-text"><strong>Solo gastos esenciales</strong>Este mes tuviste compras únicas (auto, multa, etc.) que superaron el presupuesto en ${formatMoney(overshootMes)}. De aquí a fin de mes: <strong>máximo ~S/${techoEmergencia}/día</strong> — solo comida, transporte necesario y servicios. Sin cafés, salidas ni compras.</div>
     </div>`;
   } else if (pctHoy > 1.0) {
     nudgeHtml = `<div class="nudge-card danger">
@@ -1274,12 +1278,12 @@ function renderModoDiario() {
 
   // ── Hero HTML ──
   // Cuando el mes está en negativo, mostramos "gastar lo mínimo" en lugar de S/0
-  const heroLabel   = mesEnNegativo ? 'Mes en negativo — minimiza gastos' : 'Puedes gastar hoy';
+  const heroLabel   = mesEnNegativo ? 'Modo ahorro — mes ajustado' : 'Puedes gastar hoy';
   const heroNumero  = mesEnNegativo
-    ? `<div class="md-big" style="font-size:2rem;opacity:0.7;">gastar lo mínimo</div>`
+    ? `<div class="md-big"><span class="md-currency">S/</span>40</div>`
     : `<div class="md-big"><span class="md-currency">S/</span>${restanteHoy.toFixed(0)}</div>`;
   const heroSubDate = mesEnNegativo
-    ? `<div class="md-date">${hoyFmt} · gastado mes: ${formatMoney(totalGastos)} vs ingresos ${formatMoney(ingresosEsp)}</div>`
+    ? `<div class="md-date">${hoyFmt} · techo diario recomendado (solo esencial)</div>`
     : `<div class="md-date">${hoyFmt} · límite diario ${formatMoney(limiteDiario)}</div>`;
   const heroBar     = mesEnNegativo ? '' : `
       <div class="md-bar-wrap">
