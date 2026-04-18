@@ -219,6 +219,32 @@
         .input-group label{font-size:0.875rem;}
         .field-stack{display:flex;flex-direction:column;gap:0.5rem;}
         .field-stack .input-group{margin-bottom:0;}
+
+        /* === COLAPSABLES (anti-congestión) === */
+        details.card{padding:0;display:block;margin-bottom:0.75rem;}
+        details.card>summary{cursor:pointer;user-select:none;padding:0.85rem 1rem;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:0.6rem;margin:0;border-radius:8px;}
+        details.card>summary::-webkit-details-marker{display:none;}
+        details.card>summary::after{content:'⌄';color:#64748b;font-size:1.1rem;transition:transform .25s;flex-shrink:0;font-weight:700;line-height:1;}
+        details.card[open]>summary::after{transform:rotate(180deg);}
+        details.card>summary:hover{background:#273549;}
+        details.card>.d-body{padding:0 1rem 1rem;}
+        details.card[open]>summary{border-bottom:1px solid #273549;margin-bottom:0;border-bottom-left-radius:0;border-bottom-right-radius:0;}
+        details.card[open]>.d-body{padding-top:0.85rem;}
+        .d-head{min-width:0;flex:1;display:flex;flex-direction:column;gap:0.15rem;}
+        .d-head-lbl{font-size:0.78rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:500;}
+        .d-head-val{font-size:0.9rem;color:#f1f5f9;line-height:1.35;overflow-wrap:break-word;min-width:0;}
+        .d-head-val .muted{color:#94a3b8;font-weight:400;}
+        /* Versión compacta para Config: sólo título, sin valor dinámico */
+        details.card.config-card>summary{padding:0.85rem 1rem;}
+        details.card.config-card>summary .d-head-lbl{font-size:0.9rem;color:#cbd5e1;text-transform:none;letter-spacing:0;font-weight:600;}
+        details.card.config-card>summary .d-head-val{font-size:0.75rem;color:#64748b;}
+        /* Config tab ya no usa .config-section interior cuando es colapsable */
+        .config-section{margin-bottom:0;}
+        .config-section-title{display:none;}
+        details.card.config-card>.d-body .input-group:last-of-type{margin-bottom:0.75rem;}
+        details.card.config-card>.d-body .button:last-child{margin-bottom:0;}
+        /* Card-title dentro de details: sin margen adicional si es el primer hijo */
+        details.card>.d-body>.card-title:first-child{margin-top:0;}
     </style>
 </head>
 <body>
@@ -235,21 +261,27 @@
             <div id="hero-container"></div>
             <div id="liquidez-y-gastar"></div>
             <div id="amortizacion-bbva-resumen"></div>
-            <div class="card">
-                <div class="card-title">Salud Financiera</div>
+            <details class="card">
+                <summary><div class="d-head"><div class="d-head-lbl">🩺 Salud Financiera</div><div class="d-head-val" id="score-head">—</div></div></summary>
+                <div class="d-body">
                 <div class="score-bar">
                     <div id="score-fill" class="score-fill" style="width: 0%;">0/100</div>
                 </div>
                 <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.5rem;" id="score-breakdown"></div>
-            </div>
-            <div class="card">
-                <div class="card-title">Ingresos Este Mes</div>
+                </div>
+            </details>
+            <details class="card">
+                <summary><div class="d-head"><div class="d-head-lbl">💼 Ingresos Este Mes</div><div class="d-head-val" id="income-head">—</div></div></summary>
+                <div class="d-body">
                 <div id="income-summary"></div>
-            </div>
-            <div class="card">
-                <div class="card-title">Presupuestos por Categoría</div>
+                </div>
+            </details>
+            <details class="card">
+                <summary><div class="d-head"><div class="d-head-lbl">🎯 Presupuestos por Categoría</div><div class="d-head-val" id="budget-head">—</div></div></summary>
+                <div class="d-body">
                 <div id="budget-gauges"></div>
-            </div>
+                </div>
+            </details>
             <div class="card">
                 <div class="card-title">Fondo de Emergencia</div>
                 <div id="emergency-gauge-row" class="gauge-row">
@@ -316,10 +348,12 @@
                 <div class="card-title" style="padding: 1rem 1rem 0 1rem;">Gastos del mes</div>
                 <div id="expenses-list"></div>
             </div>
-            <div class="card" style="margin-top:0.5rem;">
-                <div class="card-title">📊 Evolución últimos 6 meses</div>
+            <details class="card" style="margin-top:0.5rem;">
+                <summary><div class="d-head"><div class="d-head-lbl">📊 Evolución últimos 6 meses</div><div class="d-head-val muted">Gráfico histórico</div></div></summary>
+                <div class="d-body">
                 <div id="historial-mensual"></div>
-            </div>
+                </div>
+            </details>
         </div>
 
         <!-- TAB: AUTO -->
@@ -364,10 +398,12 @@
                 <div class="card-title">Semáforo Cuota BBVA</div>
                 <div id="semaforo-container"></div>
             </div>
-            <div class="card">
-                <div class="card-title">🔧 Mantenimiento — Estado por KM</div>
+            <details class="card" id="detail-mant-km">
+                <summary><div class="d-head"><div class="d-head-lbl">🔧 Mantenimiento — Estado por KM</div><div class="d-head-val" id="mant-km-summary">—</div></div></summary>
+                <div class="d-body">
                 <div id="mant-km-alertas"></div>
-            </div>
+                </div>
+            </details>
             <div class="card">
                 <div class="card-title">Fondo Reparación</div>
                 <div style="display: flex; justify-content: space-between; margin-bottom: 0.3rem; font-size: 0.9rem;">
@@ -381,18 +417,24 @@
                 <div class="card-sub" id="fondo-sugerencia"></div>
             </div>
             <div id="amortization-signal"></div>
-            <div class="card">
-                <div class="card-title">📅 Provisión Gastos Anuales del Auto</div>
+            <details class="card">
+                <summary><div class="d-head"><div class="d-head-lbl">📅 Provisión Gastos Anuales del Auto</div><div class="d-head-val muted" id="prov-summary">—</div></div></summary>
+                <div class="d-body">
                 <div id="provision-anual"></div>
-            </div>
-            <div class="card">
-                <div class="card-title">Resumen Mensual</div>
+                </div>
+            </details>
+            <details class="card">
+                <summary><div class="d-head"><div class="d-head-lbl">📊 Resumen Mensual</div><div class="d-head-val" id="auto-resumen-summary">—</div></div></summary>
+                <div class="d-body">
                 <div id="auto-resumen"></div>
-            </div>
-            <div class="card">
-                <div class="card-title">Historial de Noches</div>
+                </div>
+            </details>
+            <details class="card">
+                <summary><div class="d-head"><div class="d-head-lbl">🗂 Historial de Noches</div><div class="d-head-val muted" id="hist-noches-summary">—</div></div></summary>
+                <div class="d-body">
                 <div id="historial-noches"></div>
-            </div>
+                </div>
+            </details>
         </div>
 
         <!-- TAB: PLAN -->
@@ -448,8 +490,10 @@
 
         <!-- TAB: CONFIG -->
         <div id="tab-config" class="tab-content">
-            <div class="config-section">
-                <div class="config-section-title">Fuentes de Ingreso</div>
+            <p style="font-size:0.8rem;color:#64748b;margin-bottom:0.85rem;text-align:center;">Toca cada sección para expandirla.</p>
+            <details class="card config-card">
+                <summary><div class="d-head"><div class="d-head-lbl">💼 Fuentes de Ingreso</div><div class="d-head-val muted" id="cfg-sum-sources">—</div></div></summary>
+                <div class="d-body">
                 <div id="sources-list"></div>
                 <div style="margin-top: 1rem; background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 0.75rem;">
                     <div style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.75rem;">Agregar nueva fuente</div>
@@ -463,13 +507,17 @@
                     </div>
                     <button class="button" style="margin-top:0;" onclick="addSource()">Agregar Fuente</button>
                 </div>
-            </div>
-            <div class="config-section">
-                <div class="config-section-title">Presupuestos por Categoría</div>
+                </div>
+            </details>
+            <details class="card config-card">
+                <summary><div class="d-head"><div class="d-head-lbl">🎯 Presupuestos por Categoría</div><div class="d-head-val muted" id="cfg-sum-budgets">—</div></div></summary>
+                <div class="d-body">
                 <div id="budgets-config"></div>
-            </div>
-            <div class="config-section">
-                <div class="config-section-title">Liquidez (cuenta y emergencia)</div>
+                </div>
+            </details>
+            <details class="card config-card">
+                <summary><div class="d-head"><div class="d-head-lbl">💵 Liquidez (cuenta y emergencia)</div><div class="d-head-val muted" id="cfg-sum-liquidez">—</div></div></summary>
+                <div class="d-body">
                 <p style="font-size:0.8rem;color:#94a3b8;margin-bottom:0.75rem;">El total de emergencia en la app = base + depósitos que registres con &quot;Depositar&quot;.</p>
                 <div class="input-group">
                     <label>Base fondo emergencia (S/) — lo que ya tienes aparte del tracker</label>
@@ -490,17 +538,21 @@
                     </label>
                 </div>
                 <button class="button" onclick="updateLiquidezConfig()">Guardar liquidez</button>
-            </div>
-            <div class="config-section">
-                <div class="config-section-title">Fondo Emergencia — Meta</div>
+                </div>
+            </details>
+            <details class="card config-card">
+                <summary><div class="d-head"><div class="d-head-lbl">🛟 Fondo Emergencia — Meta</div><div class="d-head-val muted" id="cfg-sum-meta-em">—</div></div></summary>
+                <div class="d-body">
                 <div class="input-group">
                     <label>Monto Meta (S/)</label>
                     <input type="number" id="cfg-meta-emergencia" placeholder="6000" step="0.01">
                 </div>
                 <button class="button" onclick="updateEmergencyTarget()">Actualizar Meta</button>
-            </div>
-            <div class="config-section">
-                <div class="config-section-title">Auto — Uber</div>
+                </div>
+            </details>
+            <details class="card config-card">
+                <summary><div class="d-head"><div class="d-head-lbl">🚗 Auto — Uber</div><div class="d-head-val muted" id="cfg-sum-uber">—</div></div></summary>
+                <div class="d-body">
                 <div class="input-group">
                     <label>Meta Mensual Uber (S/)</label>
                     <input type="number" id="cfg-meta-mensual" placeholder="2450" step="0.01">
@@ -518,13 +570,17 @@
                     <input type="number" id="cfg-glp-mes" placeholder="500" step="0.01">
                 </div>
                 <button class="button" onclick="updateAutoConfig()">Guardar Config</button>
-            </div>
-            <div class="config-section">
-                <div class="config-section-title">Auto — Mantenimiento</div>
+                </div>
+            </details>
+            <details class="card config-card">
+                <summary><div class="d-head"><div class="d-head-lbl">🔧 Auto — Mantenimiento</div><div class="d-head-val muted">Intervalos y costos por ítem</div></div></summary>
+                <div class="d-body">
                 <div id="maintenance-config"></div>
-            </div>
-            <div class="config-section">
-                <div class="config-section-title">📱 Usar en el celular (gratis)</div>
+                </div>
+            </details>
+            <details class="card config-card">
+                <summary><div class="d-head"><div class="d-head-lbl">📱 Usar en el celular (gratis)</div><div class="d-head-val muted">GitHub Pages · Netlify Drop</div></div></summary>
+                <div class="d-body">
                 <div style="background:#0f172a;border-radius:8px;padding:1rem;font-size:0.85rem;line-height:1.7;color:#cbd5e1;">
                     <strong style="color:#60a5fa;">Opción recomendada: GitHub Pages</strong><br>
                     Las actualizaciones que se hagan al archivo se reflejan automáticamente en tu celular al recargar.<br><br>
@@ -544,10 +600,12 @@
                     3. En 10 segundos tienes una URL pública<br>
                     <span style="color:#94a3b8;font-size:0.8rem;">Desventaja: la URL cambia cada vez que subas una nueva versión.</span>
                 </div>
-            </div>
+                </div>
+            </details>
             <!-- SYNC NUBE -->
-            <div class="config-section">
-                <div class="config-section-title">☁️ Sincronización</div>
+            <details class="card config-card">
+                <summary><div class="d-head"><div class="d-head-lbl">☁️ Sincronización</div><div class="d-head-val muted" id="cfg-sum-sync">—</div></div></summary>
+                <div class="d-body">
                 <div id="sync-status-bar" style="font-size:0.85rem;min-height:1.2rem;margin-bottom:0.5rem;text-align:center;font-weight:500;"></div>
                 <div class="input-group">
                     <label style="font-size:0.8rem;">GitHub Token <span style="color:#64748b;">(scope: gist)</span></label>
@@ -563,13 +621,17 @@
                     <button class="button button-secondary" onclick="loadFromGist()">⬇️ Cargar desde nube</button>
                 </div>
                 <div id="sync-last" style="font-size:0.72rem;color:#475569;margin-top:0.4rem;text-align:center;"></div>
-            </div>
-            <div class="config-section">
-                <div class="config-section-title">📋 Novedades</div>
+                </div>
+            </details>
+            <details class="card config-card">
+                <summary><div class="d-head"><div class="d-head-lbl">📋 Novedades</div><div class="d-head-val muted">Historial de cambios</div></div></summary>
+                <div class="d-body">
                 <div id="novedades-container"></div>
-            </div>
-            <div class="config-section">
-                <div class="config-section-title">Acciones</div>
+                </div>
+            </details>
+            <details class="card config-card">
+                <summary><div class="d-head"><div class="d-head-lbl">⚙️ Acciones (export / import / reset)</div><div class="d-head-val muted">Datos del tracker</div></div></summary>
+                <div class="d-body">
                 <button class="button button-secondary" onclick="exportData()">📤 Exportar Datos (JSON)</button>
                 <div style="margin-top:0.75rem;">
                     <label class="button button-secondary" style="display:block;text-align:center;cursor:pointer;margin-top:0;">
@@ -579,7 +641,8 @@
                     <div id="import-status" style="font-size:0.8rem;color:#94a3b8;margin-top:0.4rem;text-align:center;"></div>
                 </div>
                 <button class="button button-danger" style="margin-top:0.75rem;" onclick="confirmResetData()">🗑 Limpiar Todo</button>
-            </div>
+                </div>
+            </details>
         </div>
     </div>
 
@@ -1505,6 +1568,11 @@ function renderResumen() {
   document.getElementById('score-fill').style.background = fillColor;
   document.getElementById('score-fill').innerHTML        = `${health.total}/100`;
   document.getElementById('score-breakdown').innerHTML   = `Ahorro: ${health.scoreAhorro}pts | Emergencia: ${health.scoreEmergencia}pts | Presupuesto: ${health.scorePresupuesto}pts | Deuda: ${health.scoreDeuda}pts`;
+  const scoreHead = document.getElementById('score-head');
+  if (scoreHead) {
+    const lbl = health.total>=70 ? 'Saludable' : health.total>=40 ? 'Atención' : 'Crítico';
+    scoreHead.innerHTML = `<span style="color:${fillColor};font-weight:600;">${health.total}/100</span> · ${lbl}`;
+  }
 
   // Ingresos: mostrar cada fuente con botón "cobrado"
   const cobrosMap = (cfgP.cobros||{})[mes] || {};
@@ -1523,6 +1591,13 @@ function renderResumen() {
     </div>`;
   });
   document.getElementById('income-summary').innerHTML = incomeHtml;
+  const incHead = document.getElementById('income-head');
+  if (incHead) {
+    const fuentes = cfgP.fuentes_ingreso || [];
+    const cobrados = fuentes.filter(f => !!cobrosMap[f.id]).length;
+    const totalCobrado = fuentes.filter(f => !!cobrosMap[f.id]).reduce((s,f)=>s+Number(f.monto||0),0) + uberNeto;
+    incHead.innerHTML = `<span style="color:#10b981;font-weight:600;">${formatMoney(totalCobrado)}</span> <span class="muted">cobrado · ${cobrados}/${fuentes.length} fuentes</span>`;
+  }
 
   // Presupuestos
   const gastosCat = {};
@@ -1547,6 +1622,24 @@ function renderResumen() {
     }
   });
   document.getElementById('budget-gauges').innerHTML = budgetHtml || '<div class="card-sub">Sin presupuestos configurados</div>';
+  const budHead = document.getElementById('budget-head');
+  if (budHead) {
+    const presEntries = Object.entries(cfgP.presupuestos||{}).filter(([,p])=>p>0);
+    if (presEntries.length === 0) {
+      budHead.innerHTML = '<span class="muted">Sin presupuestos</span>';
+    } else {
+      let enRojo = 0, enAmbar = 0;
+      presEntries.forEach(([cat,pres])=>{
+        const g = gastosCat[cat]||0;
+        const pct = (g/pres)*100;
+        if (pct > 90) enRojo++;
+        else if (pct > 70) enAmbar++;
+      });
+      const color = enRojo > 0 ? '#ef4444' : enAmbar > 0 ? '#f59e0b' : '#10b981';
+      const estado = enRojo > 0 ? `${enRojo} en límite` : enAmbar > 0 ? `${enAmbar} cerca` : 'Todas OK';
+      budHead.innerHTML = `<span style="color:${color};font-weight:600;">${estado}</span> <span class="muted">· ${presEntries.length} categorías</span>`;
+    }
+  }
 
   // Emergencia
   const em  = getTotalEmergencia();
@@ -1810,6 +1903,8 @@ function renderProvisionAnual() {
     Puedes ajustar montos en <strong>Config → Auto</strong>.
   </div>`;
   el.innerHTML = html;
+  const provSum = document.getElementById('prov-summary');
+  if (provSum) provSum.innerHTML = `<span style="color:#f59e0b;font-weight:600;">${formatMoney(totalMes)}/mes</span> <span class="muted">· ${formatMoney(totalAnual)}/año</span>`;
 }
 
 /* ── MANTENIMIENTO KM ALERTS ── */
@@ -1856,6 +1951,14 @@ function renderMantKmAlertas() {
   });
   const el = document.getElementById('mant-km-alertas');
   if (el) el.innerHTML = html || '<div style="color:#94a3b8;">Sin datos de mantenimiento</div>';
+  const sumEl = document.getElementById('mant-km-summary');
+  if (sumEl) {
+    const vencidos = items.filter(i => i.kmRest !== null && i.kmRest <= 0).length;
+    const proximos = items.filter(i => i.kmRest !== null && i.kmRest > 0 && i.kmRest <= 500).length;
+    if (vencidos > 0) sumEl.innerHTML = `<span style="color:#ef4444;font-weight:600;">🔴 ${vencidos} vencido${vencidos===1?'':'s'}</span>${proximos>0?` <span class="muted">· ${proximos} próximo${proximos===1?'':'s'}</span>`:''}`;
+    else if (proximos > 0) sumEl.innerHTML = `<span style="color:#f59e0b;font-weight:600;">🟡 ${proximos} próximo${proximos===1?'':'s'}</span>`;
+    else sumEl.innerHTML = `<span style="color:#10b981;font-weight:600;">🟢 Todo al día</span>`;
+  }
 }
 
 /* ── RENDER AUTO ── */
@@ -1946,6 +2049,10 @@ function renderAuto() {
       <div class="mini-card"><div class="mini-card-label">Cuota BBVA</div><div class="mini-card-value">${formatMoney(cuota)}</div></div>
       <div class="mini-card"><div class="mini-card-label">Neto Uber</div><div class="mini-card-value" style="color:${uberNeto>=0?'#10b981':'#ef4444'};">${formatMoney(uberNeto)}</div></div>
     </div>`;
+  const autoResHead = document.getElementById('auto-resumen-summary');
+  if (autoResHead) {
+    autoResHead.innerHTML = `<span style="color:${uberNeto>=0?'#10b981':'#ef4444'};font-weight:600;">Neto ${formatMoney(uberNeto)}</span> <span class="muted">· Bruto ${formatMoney(uberBruto)}</span>`;
+  }
 
   const sorted = [...regs].sort((a,b)=>new Date(b.fecha)-new Date(a.fecha));
   let hist = '';
@@ -1960,6 +2067,8 @@ function renderAuto() {
     </div>`;
   });
   document.getElementById('historial-noches').innerHTML = hist || '<div style="color:#94a3b8;">Sin noches registradas este mes</div>';
+  const histHead = document.getElementById('hist-noches-summary');
+  if (histHead) histHead.textContent = sorted.length > 0 ? `${sorted.length} noche${sorted.length===1?'':'s'} registrada${sorted.length===1?'':'s'}` : 'Sin noches';
   renderMantKmAlertas();
   renderProvisionAnual();
 }
@@ -2294,6 +2403,23 @@ function renderConfig() {
   document.getElementById('cfg-meta-emergencia').value = cfgP.meta_emergencia||6000;
   renderSyncConfig();
   renderNovedades();
+
+  // Resúmenes inline en los summaries de Config
+  const setSum = (id, html) => { const e = document.getElementById(id); if (e) e.innerHTML = html; };
+  const fuentes = cfgP.fuentes_ingreso || [];
+  const totalFuentes = fuentes.reduce((s,f)=>s+Number(f.monto||0),0);
+  setSum('cfg-sum-sources', `${fuentes.length} fuente${fuentes.length===1?'':'s'} · ${formatMoney(totalFuentes)}/mes`);
+  const presEntries = Object.entries(cfgP.presupuestos||{}).filter(([,p])=>p>0);
+  const totalPres = presEntries.reduce((s,[,p])=>s+Number(p||0),0);
+  setSum('cfg-sum-budgets', `${presEntries.length} categoría${presEntries.length===1?'':'s'} · ${formatMoney(totalPres)}/mes`);
+  const saldo = cfgP.saldo_cuenta || 0;
+  const baseEm = cfgP.emergencia_base || 0;
+  setSum('cfg-sum-liquidez', `Saldo ${formatMoney(saldo)} · Base em. ${formatMoney(baseEm)}`);
+  setSum('cfg-sum-meta-em', `Meta ${formatMoney(cfgP.meta_emergencia||6000)}`);
+  const cfgAuto = getCfg();
+  setSum('cfg-sum-uber', `Meta ${formatMoney(cfgAuto.metaMensual||2450)} · ${(cfgAuto.kmActual||0).toLocaleString()} km`);
+  const sync = JSON.parse(localStorage.getItem('vwb_sync')||'{}');
+  setSum('cfg-sum-sync', sync.gistId ? 'Configurado' : 'No configurado');
 
   // Mantenimiento
   const mant = JSON.parse(localStorage.getItem('vwb_mant')||'{}');
@@ -2638,6 +2764,9 @@ function renderNovedades() {
   const el = document.getElementById('novedades-container');
   if (!el) return;
   const items = [
+    { badge: 'ux',  label: 'Secciones colapsables', desc: 'Resumen, Auto y Config ahora se pueden plegar/desplegar. Menos scroll y menos carga visual.' },
+    { badge: 'ux',  label: 'Resúmenes de cabecera', desc: 'Cada sección colapsada muestra el dato clave (score, neto, vencidos, meta, etc.) sin tener que abrirla.' },
+    { badge: 'ux',  label: 'Config reorganizado', desc: 'Las 9 tarjetas de configuración ahora arrancan cerradas. Toca la sección que necesites editar.' },
     { badge: 'fix', label: 'Zoom', desc: 'La app ya no hace zoom involuntario al tocar campos en móvil.' },
     { badge: 'fix', label: 'Validación', desc: 'Montos negativos, fechas futuras y valores extremos son rechazados con aviso claro.' },
     { badge: 'fix', label: 'localStorage', desc: 'Si el almacenamiento falla (modo privado o lleno), aparece un aviso en pantalla en lugar de perder datos silenciosamente.' },
@@ -2656,7 +2785,7 @@ function renderNovedades() {
       <span class="novedad-badge ${i.badge||''}">${escapeHtml(i.label)}</span>
       <span style="color:#cbd5e1;line-height:1.4;">${escapeHtml(i.desc)}</span>
     </div>`;
-  }).join('') + `<div style="font-size:0.75rem;color:#475569;margin-top:0.5rem;text-align:right;">v2.0 · Abr 2026</div>`;
+  }).join('') + `<div style="font-size:0.75rem;color:#475569;margin-top:0.5rem;text-align:right;">v2.1 · Abr 2026</div>`;
 }
 
 window.addEventListener('DOMContentLoaded', init);
