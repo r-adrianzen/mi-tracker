@@ -504,6 +504,25 @@
                     <span style="color:#94a3b8;font-size:0.8rem;">Desventaja: la URL cambia cada vez que subas una nueva versión.</span>
                 </div>
             </div>
+            <!-- SYNC NUBE -->
+            <div class="config-section">
+                <div class="config-section-title">☁️ Sincronización</div>
+                <div id="sync-status-bar" style="font-size:0.85rem;min-height:1.2rem;margin-bottom:0.5rem;text-align:center;font-weight:500;"></div>
+                <div class="input-group">
+                    <label style="font-size:0.8rem;">GitHub Token <span style="color:#64748b;">(scope: gist)</span></label>
+                    <input type="password" id="sync-token" placeholder="ghp_..." autocomplete="off" style="font-family:monospace;">
+                </div>
+                <div class="input-group">
+                    <label style="font-size:0.8rem;">Gist ID</label>
+                    <input type="text" id="sync-gist-id" placeholder="ID del gist..." style="font-family:monospace;font-size:0.82rem;">
+                </div>
+                <button class="button button-secondary" style="margin-bottom:0.75rem;font-size:0.82rem;" onclick="saveSyncConfig()">💾 Guardar configuración</button>
+                <div style="display:flex;gap:0.5rem;">
+                    <button class="button button-success" style="flex:1;margin:0;" onclick="saveToGist()">☁️ Guardar en nube</button>
+                    <button class="button button-secondary" style="flex:1;margin:0;" onclick="loadFromGist()">⬇️ Cargar desde nube</button>
+                </div>
+                <div id="sync-last" style="font-size:0.72rem;color:#475569;margin-top:0.4rem;text-align:center;"></div>
+            </div>
             <div class="config-section">
                 <div class="config-section-title">Acciones</div>
                 <button class="button button-secondary" onclick="exportData()">📤 Exportar Datos (JSON)</button>
@@ -2123,6 +2142,7 @@ function renderConfig() {
   document.getElementById('cfg-cuota-en-gastos').checked = !!cfgP.cuota_ya_en_gastos;
 
   document.getElementById('cfg-meta-emergencia').value = cfgP.meta_emergencia||6000;
+  renderSyncConfig();
 
   // Mantenimiento
   const mant = JSON.parse(localStorage.getItem('vwb_mant')||'{}');
@@ -2279,6 +2299,106 @@ function confirmResetData() {
   if (confirm('⚠️ ESTO BORRARÁ TODOS LOS DATOS. ¿Estás seguro?')) {
     if (confirm('Última confirmación: ¿Borrar TODO?')) { localStorage.clear(); location.reload(); }
   }
+}
+
+/* ── SYNC GIST ── */
+const DEFAULT_GIST_ID = '6fb5f43f43c02fd16cd5ce6d69a70057';
+
+function getSyncCfg() {
+  return JSON.parse(localStorage.getItem('vwb_sync') || '{}');
+}
+
+function renderSyncConfig() {
+  const s = getSyncCfg();
+  const tokenEl  = document.getElementById('sync-token');
+  const gistEl   = document.getElementById('sync-gist-id');
+  const lastEl   = document.getElementById('sync-last');
+  if (tokenEl) tokenEl.value  = s.token   || '';
+  if (gistEl)  gistEl.value   = s.gist_id || DEFAULT_GIST_ID;
+  if (lastEl && s.last_sync) {
+    const d = new Date(s.last_sync);
+    lastEl.textContent = `Último sync: ${d.toLocaleDateString('es-PE')} ${d.toLocaleTimeString('es-PE', {hour:'2-digit',minute:'2-digit'})}`;
+  } else if (lastEl) {
+    lastEl.textContent = 'Sin sincronizar aún en este dispositivo';
+  }
+}
+
+function saveSyncConfig() {
+  const token   = document.getElementById('sync-token').value.trim();
+  const gist_id = document.getElementById('sync-gist-id').value.trim();
+  localStorage.setItem('vwb_sync', JSON.stringify({...getSyncCfg(), token, gist_id}));
+  showSyncStatus('✅ Configuración guardada', '#10b981');
+}
+
+function showSyncStatus(msg, color) {
+  const el = document.getElementById('sync-status-bar');
+  if (el) { el.textContent = msg; el.style.color = color || '#94a3b8'; }
+}
+
+function getExportPayload() {
+  return {
+    gastos:           getGastos(),
+    regs:             getRegs(),
+    emergencia:       getEmergencia(),
+    prepagos_capital: getPrepagosCapital(),
+    cfg:              getCfg(),
+    cfg_personal:     getCfgPersonal(),
+    mant:             JSON.parse(localStorage.getItem('vwb_mant') || '{}')
+  };
+}
+
+async function saveToGist() {
+  const s = getSyncCfg();
+  if (!s.token) { showSyncStatus('⚠️ Ingresa el token primero y guarda la configuración', '#f59e0b'); return; }
+  const gid = s.gist_id || DEFAULT_GIST_ID;
+  showSyncStatus('☁️ Guardando en nube...', '#60a5fa');
+  try {
+    const r = await fetch(`https://api.github.com/gists/${gid}`, {
+      method: 'PATCH',
+      headers: { 'Authorization': `token ${s.token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ files: { 'tracker-data.json': { content: JSON.stringify(getExportPayload(), null, 2) } } })
+    });
+    if (r.ok) {
+      const now = new Date();
+      const syncData = {...s, gist_id: gid, last_sync: now.toISOString()};
+      localStorage.setItem('vwb_sync', JSON.stringify(syncData));
+      const lastEl = document.getElementById('sync-last');
+      if (lastEl) lastEl.textContent = `Último sync: ${now.toLocaleDateString('es-PE')} ${now.toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'})}`;
+      showSyncStatus('✅ Datos guardados en la nube', '#10b981');
+    } else {
+      const err = await r.json();
+      showSyncStatus(`❌ Error: ${err.message}`, '#ef4444');
+    }
+  } catch(e) { showSyncStatus(`❌ Sin conexión: ${e.message}`, '#ef4444'); }
+}
+
+async function loadFromGist() {
+  const s = getSyncCfg();
+  if (!s.token) { showSyncStatus('⚠️ Ingresa el token primero y guarda la configuración', '#f59e0b'); return; }
+  const gid = s.gist_id || DEFAULT_GIST_ID;
+  if (!confirm('¿Cargar datos desde la nube? Esto REEMPLAZARÁ todos los datos locales.')) return;
+  showSyncStatus('⬇️ Cargando desde nube...', '#60a5fa');
+  try {
+    const r = await fetch(`https://api.github.com/gists/${gid}`, {
+      headers: { 'Authorization': `token ${s.token}` }
+    });
+    if (!r.ok) { const err = await r.json(); showSyncStatus(`❌ Error: ${err.message}`, '#ef4444'); return; }
+    const gist = await r.json();
+    const content = gist.files['tracker-data.json']?.content;
+    if (!content) { showSyncStatus('❌ No se encontró tracker-data.json en el Gist', '#ef4444'); return; }
+    const data = JSON.parse(content);
+    if (data.gastos)           localStorage.setItem('vwb_gastos',           JSON.stringify(data.gastos));
+    if (data.regs)             localStorage.setItem('vwb_regs',             JSON.stringify(data.regs));
+    if (data.emergencia)       localStorage.setItem('vwb_emergencia',       JSON.stringify(data.emergencia));
+    if (data.prepagos_capital) localStorage.setItem('vwb_prepagos_capital', JSON.stringify(data.prepagos_capital));
+    if (data.mant)             localStorage.setItem('vwb_mant',             JSON.stringify(data.mant));
+    if (data.cfg)              localStorage.setItem('vwb_cfg',              JSON.stringify(data.cfg));
+    if (data.cfg_personal)     localStorage.setItem('vwb_cfg_personal',     JSON.stringify(data.cfg_personal));
+    const now = new Date();
+    localStorage.setItem('vwb_sync', JSON.stringify({...s, gist_id: gid, last_sync: now.toISOString()}));
+    showSyncStatus('✅ Datos cargados. Recargando...', '#10b981');
+    setTimeout(() => location.reload(), 1200);
+  } catch(e) { showSyncStatus(`❌ Error: ${e.message}`, '#ef4444'); }
 }
 
 /* ── RECOMENDACIÓN DE AHORRO ── */
