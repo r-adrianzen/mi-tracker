@@ -28,7 +28,7 @@
 
         /* === GAUGES === */
         .gauge-row {display: flex; align-items: center; gap: 10px; margin: 0.5rem 0;}
-        .gauge {background: #334155; border-radius: 4px; height: 20px; overflow: hidden; flex: 1;}
+        .gauge {background: #334155; border-radius: 4px; height: 20px; overflow: hidden; flex: 1; min-width: 0;}
         .gauge-fill {height: 100%; background: #10b981; transition: width 0.3s, background 0.3s; border-radius: 4px;}
         .gauge-pct {font-size: 0.8rem; font-weight: bold; color: #e2e8f0; min-width: 36px; text-align: right; flex-shrink: 0;}
         /* Legacy single-gauge (no row) */
@@ -154,8 +154,8 @@
         .mini-card-value {font-size: 1.2rem; font-weight: bold; color: #f1f5f9;}
 
         .deposit-row {display: flex; gap: 0.5rem; align-items: flex-end; margin-top: 0.75rem;}
-        .deposit-row input {flex: 1; padding: 0.5rem; font-size: 0.95rem; margin: 0;}
-        .deposit-row button {width: auto; margin: 0; padding: 0.5rem 1rem; font-size: 0.9rem; white-space: nowrap;}
+        .deposit-row input {flex: 1; min-width: 0; padding: 0.5rem; font-size: 0.95rem; margin: 0;}
+        .deposit-row button {width: auto; min-width: 0; margin: 0; padding: 0.5rem 1rem; font-size: 0.9rem; white-space: nowrap; flex-shrink: 0;}
 
         .income-cobrado-row {display: flex; gap: 0.5rem; align-items: center; margin-top: 0.3rem;}
 
@@ -201,6 +201,24 @@
         .novedad-badge{background:#1e3a8a;color:#93c5fd;font-size:0.7rem;padding:0.15rem 0.45rem;border-radius:3px;white-space:nowrap;align-self:flex-start;margin-top:0.1rem;flex-shrink:0;}
         .novedad-badge.fix{background:#064e3b;color:#6ee7b7;}
         .novedad-badge.ux{background:#4c1d95;color:#c4b5fd;}
+
+        /* === LAYOUT FIXES === */
+        /* Evita que hijos de grid/flex desborden su contenedor */
+        .grid-2 > *{min-width:0;}
+        .gauge{min-width:0;}
+        .expense-info{min-width:0;overflow-wrap:break-word;}
+        .nudge-text{min-width:0;overflow-wrap:break-word;}
+        .source-name{overflow-wrap:break-word;min-width:0;}
+        .mision-title{min-width:0;overflow-wrap:break-word;}
+        .hito-desc{min-width:0;overflow-wrap:break-word;}
+        /* Botones dentro de filas flex: anula width:100% del .button base */
+        .btn-row{display:flex;gap:0.5rem;}
+        .btn-row>.button{flex:1;width:auto;min-width:0;}
+        .btn-row>.button-secondary{flex:1;width:auto;min-width:0;}
+        /* Inputs y labels: tamaño uniforme en formularios compactos */
+        .input-group label{font-size:0.875rem;}
+        .field-stack{display:flex;flex-direction:column;gap:0.5rem;}
+        .field-stack .input-group{margin-bottom:0;}
     </style>
 </head>
 <body>
@@ -406,19 +424,19 @@
                 <div class="card-title">Amortizaciones a capital (prepago BBVA)</div>
                 <p class="card-sub" style="margin-bottom:0.75rem;">Registra cada abono <strong>a capital</strong> que confirme el banco. La app recalcula las cuotas siguientes con la TEA del préstamo y el saldo restante (mismo número de pagos pactados).</p>
                 <div id="prepagos-lista-resumen"></div>
-                <div class="grid-2" style="gap:0.5rem;margin-top:0.75rem;">
-                    <div class="input-group" style="margin-bottom:0.5rem;">
-                        <label style="font-size:0.85rem;">Fecha del abono</label>
+                <div class="field-stack" style="margin-top:0.75rem;">
+                    <div class="input-group">
+                        <label>Fecha del abono</label>
                         <input type="date" id="prepago-fecha">
                     </div>
-                    <div class="input-group" style="margin-bottom:0.5rem;">
-                        <label style="font-size:0.85rem;">Monto a capital (S/)</label>
+                    <div class="input-group">
+                        <label>Monto a capital (S/)</label>
                         <input type="number" id="prepago-monto" placeholder="0.00" step="0.01" min="0">
                     </div>
-                </div>
-                <div class="input-group" style="margin-bottom:0.5rem;">
-                    <label style="font-size:0.85rem;">Nota (opcional)</label>
-                    <input type="text" id="prepago-nota" placeholder="ej. vía app BBVA">
+                    <div class="input-group">
+                        <label>Nota (opcional)</label>
+                        <input type="text" id="prepago-nota" placeholder="ej. vía app BBVA">
+                    </div>
                 </div>
                 <button type="button" class="button button-success" onclick="registrarPrepagoCapital()">Registrar amortización</button>
             </div>
@@ -540,9 +558,9 @@
                     <input type="text" id="sync-gist-id" placeholder="ID del gist..." style="font-family:monospace;font-size:0.82rem;">
                 </div>
                 <button class="button button-secondary" style="margin-bottom:0.75rem;font-size:0.82rem;" onclick="saveSyncConfig()">💾 Guardar configuración</button>
-                <div style="display:flex;gap:0.5rem;">
-                    <button class="button button-success" style="flex:1;margin:0;" onclick="saveToGist()">☁️ Guardar en nube</button>
-                    <button class="button button-secondary" style="flex:1;margin:0;" onclick="loadFromGist()">⬇️ Cargar desde nube</button>
+                <div class="btn-row">
+                    <button class="button button-success" onclick="saveToGist()">☁️ Guardar en nube</button>
+                    <button class="button button-secondary" onclick="loadFromGist()">⬇️ Cargar desde nube</button>
                 </div>
                 <div id="sync-last" style="font-size:0.72rem;color:#475569;margin-top:0.4rem;text-align:center;"></div>
             </div>
@@ -1623,20 +1641,20 @@ function renderGastos() {
         </div>
       </div>
       <div id="exp-edit-${g.id}" style="display:none;background:#0f172a;border:1px solid #334155;border-radius:6px;padding:0.75rem;margin-bottom:0.5rem;">
-        <div class="grid-2" style="gap:0.5rem;margin-bottom:0.5rem;">
-          <div><label style="font-size:0.8rem;color:#94a3b8;">Monto</label>
-            <input type="number" id="eed-monto-${g.id}" value="${g.monto}" step="0.01" style="padding:0.4rem;font-size:0.9rem;width:100%;background:#1e293b;border:1px solid #334155;color:#e2e8f0;border-radius:4px;">
+        <div class="field-stack" style="margin-bottom:0.6rem;">
+          <div class="input-group"><label style="color:#94a3b8;">Monto (S/)</label>
+            <input type="number" id="eed-monto-${g.id}" value="${g.monto}" step="0.01" style="background:#1e293b;border:1px solid #334155;color:#e2e8f0;border-radius:4px;">
           </div>
-          <div><label style="font-size:0.8rem;color:#94a3b8;">Fecha</label>
-            <input type="date" id="eed-fecha-${g.id}" value="${g.fecha}" style="padding:0.4rem;font-size:0.9rem;width:100%;background:#1e293b;border:1px solid #334155;color:#e2e8f0;border-radius:4px;">
+          <div class="input-group"><label style="color:#94a3b8;">Fecha</label>
+            <input type="date" id="eed-fecha-${g.id}" value="${g.fecha}" style="background:#1e293b;border:1px solid #334155;color:#e2e8f0;border-radius:4px;">
+          </div>
+          <div class="input-group"><label style="color:#94a3b8;">Nota</label>
+            <input type="text" id="eed-nota-${g.id}" value="${escapeAttr(g.nota||'')}" style="background:#1e293b;border:1px solid #334155;color:#e2e8f0;border-radius:4px;">
           </div>
         </div>
-        <div style="margin-bottom:0.5rem;"><label style="font-size:0.8rem;color:#94a3b8;">Nota</label>
-          <input type="text" id="eed-nota-${g.id}" value="${escapeAttr(g.nota||'')}" style="padding:0.4rem;font-size:0.9rem;width:100%;background:#1e293b;border:1px solid #334155;color:#e2e8f0;border-radius:4px;">
-        </div>
-        <div style="display:flex;gap:0.5rem;">
-          <button class="btn-sm ok" style="flex:1;padding:0.4rem;" onclick="saveExpenseEdit(${g.id})">Guardar</button>
-          <button class="btn-sm" style="flex:1;padding:0.4rem;background:#475569;" onclick="cancelEditExpense(${g.id})">Cancelar</button>
+        <div class="btn-row">
+          <button class="btn-sm ok" style="flex:1;min-width:0;padding:0.5rem;" onclick="saveExpenseEdit(${g.id})">Guardar</button>
+          <button class="btn-sm" style="flex:1;min-width:0;padding:0.5rem;background:#475569;" onclick="cancelEditExpense(${g.id})">Cancelar</button>
         </div>
       </div>`;
     });
@@ -2241,17 +2259,19 @@ function renderConfig() {
       </div>
     </div>
     <div id="edit-src-${f.id}" class="source-edit-form">
-      <div class="input-group" style="margin-bottom:0.5rem;">
-        <label style="font-size:0.8rem;">Nombre</label>
-        <input type="text" id="edit-name-${f.id}" value="${escapeAttr(f.nombre)}" style="padding:0.5rem;font-size:0.9rem;">
+      <div class="field-stack" style="margin-bottom:0.6rem;">
+        <div class="input-group">
+          <label>Nombre</label>
+          <input type="text" id="edit-name-${f.id}" value="${escapeAttr(f.nombre)}">
+        </div>
+        <div class="input-group">
+          <label>Monto mensual (S/)</label>
+          <input type="number" id="edit-amount-${f.id}" value="${f.monto}" step="0.01">
+        </div>
       </div>
-      <div class="input-group" style="margin-bottom:0.5rem;">
-        <label style="font-size:0.8rem;">Monto mensual (S/)</label>
-        <input type="number" id="edit-amount-${f.id}" value="${f.monto}" step="0.01" style="padding:0.5rem;font-size:0.9rem;">
-      </div>
-      <div style="display:flex;gap:0.5rem;">
-        <button class="button button-success" style="margin:0;padding:0.5rem;" onclick="saveSourceEdit('${f.id}')">Guardar</button>
-        <button class="button button-secondary" style="margin:0;padding:0.5rem;" onclick="toggleEditSource('${f.id}')">Cancelar</button>
+      <div class="btn-row">
+        <button class="button button-success" onclick="saveSourceEdit('${f.id}')">Guardar</button>
+        <button class="button button-secondary" onclick="toggleEditSource('${f.id}')">Cancelar</button>
       </div>
     </div>`;
   });
@@ -2286,19 +2306,19 @@ function renderConfig() {
         <span><strong>${m.emoji} ${m.nombre}</strong> ${esCritico}</span>
         <span style="font-size:0.8rem;color:#94a3b8;">c/${m.km.toLocaleString()} km</span>
       </div>
-      <div class="grid-2" style="gap:0.5rem;margin-bottom:0.3rem;">
-        <div class="input-group" style="margin-bottom:0;">
-          <label style="font-size:0.8rem;">Última fecha</label>
-          <input type="date" class="maint-fecha" data-id="${m.id}" value="${log.fecha||''}" style="padding:0.5rem;font-size:0.9rem;">
+      <div class="field-stack" style="margin-bottom:0.25rem;">
+        <div class="input-group">
+          <label>Última fecha</label>
+          <input type="date" class="maint-fecha" data-id="${m.id}" value="${log.fecha||''}">
         </div>
-        <div class="input-group" style="margin-bottom:0;">
-          <label style="font-size:0.8rem;">KM en ese servicio</label>
-          <input type="number" class="maint-km" data-id="${m.id}" value="${log.km||''}" placeholder="ej: 112292" style="padding:0.5rem;font-size:0.9rem;">
+        <div class="input-group">
+          <label>KM en ese servicio</label>
+          <input type="number" class="maint-km" data-id="${m.id}" value="${log.km||''}" placeholder="ej: 112292">
         </div>
-      </div>
-      <div class="input-group" style="margin-bottom:0;">
-        <label style="font-size:0.8rem;">Notas</label>
-        <textarea class="maint-notas" data-id="${m.id}" style="font-size:0.8rem;min-height:36px;">${escapeHtml(log.notas||'')}</textarea>
+        <div class="input-group">
+          <label>Notas</label>
+          <textarea class="maint-notas" data-id="${m.id}" style="min-height:36px;">${escapeHtml(log.notas||'')}</textarea>
+        </div>
       </div>
     </div>`;
   });
