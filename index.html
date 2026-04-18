@@ -1342,6 +1342,34 @@ function buildAmortizacionCardHtml(amp, compact) {
   return `<div class="card"><div class="card-title">Amortización a capital — BBVA</div><div class="amort-veredicto">${emoji}${escapeHtml(titulo)}</div>${montosLine}<ul class="amort-list">${list}</ul></div>`;
 }
 
+function calcSaldoEstimado(cfgP) {
+  const base = Number(cfgP.saldo_cuenta);
+  const fecha = cfgP.saldo_cuenta_fecha || '';
+  if (!fecha || isNaN(base)) return null;
+  // Gastos registrados desde la fecha del snapshot
+  const gastosDesde = getGastos().filter(g => g.fecha >= fecha).reduce((s,g) => s+g.monto, 0);
+  // GLP + otros de noches Uber desde esa fecha (son salidas reales de la cuenta)
+  const regsDesde = getRegs().filter(r => r.fecha >= fecha);
+  const uberIngDesde = regsDesde.reduce((s,r) => s+r.ingreso, 0);
+  const uberGlpOtros = regsDesde.reduce((s,r) => s+r.glp+r.otros, 0);
+  // Cobros de fuentes (marcados como cobrados) en meses >= fecha del snapshot
+  const snapMes = fecha.slice(0,7);
+  let cobradoDesde = 0;
+  Object.entries(cfgP.cobros || {}).forEach(([mes, mapa]) => {
+    if (mes >= snapMes) {
+      (cfgP.fuentes_ingreso||[]).forEach(f => { if (mapa[f.id]) cobradoDesde += Number(f.monto||0); });
+    }
+  });
+  // Cuota BBVA: si no está en gastos, descontarla si el mes ya pasó o es el actual
+  const plan = getLoanPlan();
+  let cuotaDesde = 0;
+  if (!cfgP.cuota_ya_en_gastos) {
+    const mesHoy = getCurrentMonth();
+    plan.forEach(p => { if (p.mes >= snapMes && p.mes <= mesHoy) cuotaDesde += p.cuota; });
+  }
+  return base + uberIngDesde + cobradoDesde - uberGlpOtros - gastosDesde - cuotaDesde;
+}
+
 function renderLiquidezPatrimonioHtml(cfgP) {
   const fecha = cfgP.saldo_cuenta_fecha || '';
   const fechaFmt = fecha ? new Date(fecha + 'T12:00:00').toLocaleDateString('es-PE', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
@@ -1350,12 +1378,19 @@ function renderLiquidezPatrimonioHtml(cfgP) {
   const depSum = getEmergencia().reduce((s,e)=>s+Number(e.monto||0),0);
   const emTotal = getTotalEmergencia();
   const saldoTxt = !isNaN(saldo) && saldo >= 0 ? formatMoney(saldo) : '—';
+  const estimado = calcSaldoEstimado(cfgP);
+  const estimadoColor = estimado === null ? '#94a3b8' : estimado >= 500 ? '#10b981' : estimado >= 0 ? '#f59e0b' : '#ef4444';
+  const estimadoTxt = estimado !== null ? formatMoney(estimado) : '—';
   return `<div class="card"><div class="card-title">Patrimonio líquido</div>
     <div class="grid-2" style="gap:0.6rem;">
-      <div class="mini-card"><div class="mini-card-label">Saldo cuenta (${fechaFmt})</div><div class="mini-card-value">${saldoTxt}</div></div>
-      <div class="mini-card"><div class="mini-card-label">Fondo emergencia total</div><div class="mini-card-value">${formatMoney(emTotal)}</div></div>
+      <div class="mini-card"><div class="mini-card-label">Snapshot (${fechaFmt})</div><div class="mini-card-value" style="font-size:1rem;">${saldoTxt}</div></div>
+      <div class="mini-card"><div class="mini-card-label">Saldo estimado hoy</div><div class="mini-card-value" style="color:${estimadoColor};">${estimadoTxt}</div></div>
     </div>
-    <div class="card-sub" style="margin-top:0.5rem;">Emergencia = base ${formatMoney(baseEm)} + depósitos registrados en la app ${formatMoney(depSum)}. Edita en Config si cambia.</div></div>`;
+    <div class="card-sub" style="margin-top:0.5rem;font-size:0.78rem;">Estimado = snapshot ${saldoTxt} + Uber + cobros − gastos − GLP − cuota BBVA desde ${fechaFmt}. Actualiza el snapshot en Config cuando lo veas en el banco.</div>
+    <div class="grid-2" style="gap:0.6rem;margin-top:0.6rem;">
+      <div class="mini-card"><div class="mini-card-label">Fondo emergencia</div><div class="mini-card-value" style="font-size:1rem;">${formatMoney(emTotal)}</div></div>
+    </div>
+    <div class="card-sub" style="margin-top:0.5rem;">Emergencia = base ${formatMoney(baseEm)} + depósitos en app ${formatMoney(depSum)}.</div></div>`;
 }
 
 /* ── SALUD FINANCIERA ── */
@@ -2645,18 +2680,19 @@ function getExportPayload() {
 let _autoSyncTimer = null;
 function autoSync() {
   const s = getSyncCfg();
-  if (!s.token || !s.gist_id) return;
+  const gid = s.gist_id || DEFAULT_GIST_ID;
+  if (!s.token || !gid) return;
   clearTimeout(_autoSyncTimer);
   _autoSyncTimer = setTimeout(async () => {
     try {
-      const r = await fetch(`https://api.github.com/gists/${s.gist_id}`, {
+      const r = await fetch(`https://api.github.com/gists/${gid}`, {
         method: 'PATCH',
         headers: { 'Authorization': `token ${s.token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ files: { 'tracker-data.json': { content: JSON.stringify(getExportPayload(), null, 2) } } })
       });
       if (r.ok) {
         const now = new Date();
-        localStorage.setItem('vwb_sync', JSON.stringify({...s, last_sync: now.toISOString()}));
+        localStorage.setItem('vwb_sync', JSON.stringify({...s, gist_id: gid, last_sync: now.toISOString()}));
         const lastEl = document.getElementById('sync-last');
         if (lastEl) lastEl.textContent = `Último sync: ${now.toLocaleDateString('es-PE')} ${now.toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'})}`;
         showSyncStatus('✅ Auto-sync OK', '#10b981');
@@ -2809,6 +2845,8 @@ function renderNovedades() {
   const el = document.getElementById('novedades-container');
   if (!el) return;
   const items = [
+    { badge: 'fix', label: 'Auto-sync gist_id', desc: 'El auto-sync ya no se cancela cuando el Gist ID no estaba guardado explícitamente (usaba el ID por defecto en silencio).' },
+    { badge: 'new', label: 'Saldo estimado hoy', desc: 'El card de liquidez ahora muestra el saldo estimado actual = snapshot + Uber + cobros − gastos − GLP − cuota BBVA desde la fecha del snapshot.' },
     { badge: 'new', label: 'Auto-sync', desc: 'Cada vez que guardas un gasto, noche, amortización o configuración, la app sincroniza automáticamente con el Gist (3 s de espera para agrupar cambios). Requiere token y Gist ID configurados.' },
     { badge: 'ux',  label: 'Secciones colapsables', desc: 'Resumen, Auto y Config ahora se pueden plegar/desplegar. Menos scroll y menos carga visual.' },
     { badge: 'ux',  label: 'Resúmenes de cabecera', desc: 'Cada sección colapsada muestra el dato clave (score, neto, vencidos, meta, etc.) sin tener que abrirla.' },
@@ -2831,7 +2869,7 @@ function renderNovedades() {
       <span class="novedad-badge ${i.badge||''}">${escapeHtml(i.label)}</span>
       <span style="color:#cbd5e1;line-height:1.4;">${escapeHtml(i.desc)}</span>
     </div>`;
-  }).join('') + `<div style="font-size:0.75rem;color:#475569;margin-top:0.5rem;text-align:right;">v2.2 · Abr 2026</div>`;
+  }).join('') + `<div style="font-size:0.75rem;color:#475569;margin-top:0.5rem;text-align:right;">v2.3 · Abr 2026</div>`;
 }
 
 window.addEventListener('DOMContentLoaded', init);
