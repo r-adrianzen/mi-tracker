@@ -1155,6 +1155,7 @@ function saveExpense() {
   setDefaultDate();
   showToast('Gasto guardado ✓', 'ok');
   renderResumen(); renderGastos();
+  autoSync();
 }
 
 function deleteExpense(id) {
@@ -1189,6 +1190,7 @@ function toggleCobrado(srcId) {
   cfgP.cobros[mes][srcId] = !cfgP.cobros[mes][srcId];
   saveCfgPersonal(cfgP);
   renderResumen(); renderGastos();
+  autoSync();
 }
 function getTotalCobradoThisMonth() {
   const mes = getCurrentMonth();
@@ -1229,6 +1231,7 @@ function guardarNoche() {
   setDefaultDate();
   showToast('Noche guardada ✓', 'ok');
   renderAuto(); renderResumen(); renderGastos();
+  autoSync();
 }
 
 /* ── EMERGENCIA ── */
@@ -1250,6 +1253,7 @@ function depositarEmergencia() {
   saveEmergencia(em);
   document.getElementById('emergencia-deposito').value = '';
   renderResumen();
+  autoSync();
 }
 
 /** Cuándo y cuánto orientar prepago a capital del crédito (heurística, no asesoría bancaria). */
@@ -1782,6 +1786,7 @@ function saveExpenseEdit(id) {
   saveGastos(gastos);
   showToast('Gasto actualizado ✓', 'ok');
   renderGastos(); renderResumen();
+  autoSync();
 }
 
 function renderHistorialMensual() {
@@ -2343,12 +2348,14 @@ function registrarPrepagoCapital() {
   document.getElementById('prepago-nota').value = '';
   showToast('Amortización registrada ✓', 'ok');
   renderPlan(); renderResumen(); renderAuto(); renderGastos();
+  autoSync();
 }
 
 function eliminarPrepagoCapital(id) {
   if (!confirm('¿Quitar esta amortización del registro y volver a calcular el calendario?')) return;
   savePrepagosCapital(getPrepagosCapital().filter(p => p.id !== id));
   renderPlan(); renderResumen(); renderAuto();
+  autoSync();
 }
 
 /* ── RENDER CONFIG ── */
@@ -2468,6 +2475,7 @@ function saveSourceEdit(id) {
   }
   saveCfgPersonal(cfgP);
   renderConfig(); renderResumen();
+  autoSync();
 }
 function addSource() {
   const name   = document.getElementById('new-source-name').value.trim();
@@ -2480,17 +2488,20 @@ function addSource() {
   document.getElementById('new-source-name').value   = '';
   document.getElementById('new-source-amount').value = '';
   renderConfig(); renderResumen();
+  autoSync();
 }
 function deleteSource(id) {
   const cfgP = getCfgPersonal();
   cfgP.fuentes_ingreso = (cfgP.fuentes_ingreso||[]).filter(s=>s.id!==id);
   saveCfgPersonal(cfgP);
   renderConfig(); renderResumen();
+  autoSync();
 }
 function updateBudgetConfig() {
   const cfgP = getCfgPersonal();
   document.querySelectorAll('.budget-input').forEach(inp=>{ cfgP.presupuestos[inp.dataset.cat]=parseFloat(inp.value)||0; });
   saveCfgPersonal(cfgP); renderResumen();
+  autoSync();
 }
 function updateMaintenance(e) {
   const mant = JSON.parse(localStorage.getItem('vwb_mant')||'{}');
@@ -2503,6 +2514,7 @@ function updateMaintenance(e) {
   } else mant[id].notas = e.target.value;
   lsSave('vwb_mant', mant);
   renderMantKmAlertas();
+  autoSync();
 }
 function updateAutoConfig() {
   const cfg = getCfg();
@@ -2511,11 +2523,13 @@ function updateAutoConfig() {
   cfg.kmMes       = parseInt(document.getElementById('cfg-km-mes').value)||2000;
   cfg.glpMes      = parseFloat(document.getElementById('cfg-glp-mes').value)||500;
   saveCfg(cfg); renderAuto(); renderResumen(); alert('Configuración guardada ✓');
+  autoSync();
 }
 function updateEmergencyTarget() {
   const cfgP = getCfgPersonal();
   cfgP.meta_emergencia = parseFloat(document.getElementById('cfg-meta-emergencia').value)||6000;
   saveCfgPersonal(cfgP); renderResumen(); alert('Meta actualizada ✓');
+  autoSync();
 }
 function updateLiquidezConfig() {
   const cfgP = getCfgPersonal();
@@ -2528,6 +2542,7 @@ function updateLiquidezConfig() {
   saveCfgPersonal(cfgP);
   renderConfig(); renderResumen(); renderGastos(); renderAuto(); renderPlan();
   alert('Liquidez guardada ✓');
+  autoSync();
 }
 function exportData() {
   const data = {gastos:getGastos(),regs:getRegs(),emergencia:getEmergencia(),prepagos_capital:getPrepagosCapital(),cfg:getCfg(),cfg_personal:getCfgPersonal(),mant:JSON.parse(localStorage.getItem('vwb_mant')||'{}')};
@@ -2624,6 +2639,34 @@ function getExportPayload() {
     cfg_personal:     getCfgPersonal(),
     mant:             JSON.parse(localStorage.getItem('vwb_mant') || '{}')
   };
+}
+
+/* ── AUTO-SYNC (silencioso, con debounce 3 s) ── */
+let _autoSyncTimer = null;
+function autoSync() {
+  const s = getSyncCfg();
+  if (!s.token || !s.gist_id) return;
+  clearTimeout(_autoSyncTimer);
+  _autoSyncTimer = setTimeout(async () => {
+    try {
+      const r = await fetch(`https://api.github.com/gists/${s.gist_id}`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `token ${s.token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ files: { 'tracker-data.json': { content: JSON.stringify(getExportPayload(), null, 2) } } })
+      });
+      if (r.ok) {
+        const now = new Date();
+        localStorage.setItem('vwb_sync', JSON.stringify({...s, last_sync: now.toISOString()}));
+        const lastEl = document.getElementById('sync-last');
+        if (lastEl) lastEl.textContent = `Último sync: ${now.toLocaleDateString('es-PE')} ${now.toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'})}`;
+        showSyncStatus('✅ Auto-sync OK', '#10b981');
+      } else {
+        showSyncStatus('⚠️ Auto-sync falló — guarda manualmente', '#f59e0b');
+      }
+    } catch(_) {
+      showSyncStatus('⚠️ Sin conexión — datos guardados localmente', '#f59e0b');
+    }
+  }, 3000);
 }
 
 async function saveToGist() {
@@ -2766,6 +2809,7 @@ function renderNovedades() {
   const el = document.getElementById('novedades-container');
   if (!el) return;
   const items = [
+    { badge: 'new', label: 'Auto-sync', desc: 'Cada vez que guardas un gasto, noche, amortización o configuración, la app sincroniza automáticamente con el Gist (3 s de espera para agrupar cambios). Requiere token y Gist ID configurados.' },
     { badge: 'ux',  label: 'Secciones colapsables', desc: 'Resumen, Auto y Config ahora se pueden plegar/desplegar. Menos scroll y menos carga visual.' },
     { badge: 'ux',  label: 'Resúmenes de cabecera', desc: 'Cada sección colapsada muestra el dato clave (score, neto, vencidos, meta, etc.) sin tener que abrirla.' },
     { badge: 'ux',  label: 'Config reorganizado', desc: 'Las 9 tarjetas de configuración ahora arrancan cerradas. Toca la sección que necesites editar.' },
@@ -2787,7 +2831,7 @@ function renderNovedades() {
       <span class="novedad-badge ${i.badge||''}">${escapeHtml(i.label)}</span>
       <span style="color:#cbd5e1;line-height:1.4;">${escapeHtml(i.desc)}</span>
     </div>`;
-  }).join('') + `<div style="font-size:0.75rem;color:#475569;margin-top:0.5rem;text-align:right;">v2.1 · Abr 2026</div>`;
+  }).join('') + `<div style="font-size:0.75rem;color:#475569;margin-top:0.5rem;text-align:right;">v2.2 · Abr 2026</div>`;
 }
 
 window.addEventListener('DOMContentLoaded', init);
