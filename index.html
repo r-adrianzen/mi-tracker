@@ -1513,16 +1513,28 @@ function renderModoDiario() {
   }
 
   // ── Hero HTML ──
-  // Cuando el mes está en negativo, mostramos "gastar lo mínimo" en lugar de S/0
+  const techoAhorro = 40;
+  const restanteAhorro = Math.max(0, techoAhorro - gastoHoyTotal);
+  const pctAhorro = Math.min(100, Math.round((gastoHoyTotal / techoAhorro) * 100));
+  const ahorroSuperado = gastoHoyTotal > techoAhorro;
   const heroLabel   = mesEnNegativo ? 'Modo ahorro — mes ajustado' : 'Puedes gastar hoy';
   const heroNumero  = mesEnNegativo
-    ? `<div class="md-big"><span class="md-currency">S/</span>40</div>`
+    ? (ahorroSuperado
+        ? `<div class="md-big" style="font-size:2rem;color:#fca5a5;">Límite superado</div>`
+        : `<div class="md-big"><span class="md-currency">S/</span>${restanteAhorro.toFixed(0)}</div>`)
     : `<div class="md-big"><span class="md-currency">S/</span>${restanteHoy.toFixed(0)}</div>`;
   const heroSubDate = mesEnNegativo
-    ? `<div class="md-date">${hoyFmt} · techo diario recomendado (solo esencial)</div>`
+    ? `<div class="md-date">${hoyFmt} · techo S/40/día — gastado hoy ${formatMoney(gastoHoyTotal)}</div>`
     : `<div class="md-date">${hoyFmt} · límite diario ${formatMoney(limiteDiario)}</div>`;
-  const heroBar     = mesEnNegativo ? '' : `
-      <div class="md-bar-wrap">
+  const heroBar     = mesEnNegativo
+    ? `<div class="md-bar-wrap">
+        <div class="md-bar-fill" style="width:${pctAhorro}%;background:${ahorroSuperado?'#ef4444':'#f59e0b'};"></div>
+      </div>
+      <div class="md-bar-label">
+        <span>Gastado hoy: ${formatMoney(gastoHoyTotal)}</span>
+        <span>Techo: S/40</span>
+      </div>`
+    : `<div class="md-bar-wrap">
         <div class="md-bar-fill" style="width:${pctBar}%;background:${barColor};"></div>
       </div>
       <div class="md-bar-label">
